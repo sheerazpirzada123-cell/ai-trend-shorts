@@ -41,11 +41,28 @@ jobs:
           echo "===== AI VIDEO PLAN ====="
           cat video_plan.json
 
+      - name: Generate test AI video
+        env:
+          MAGIC_HOUR_API_KEY: ${{ secrets.MAGIC_HOUR_API_KEY }}
+        run: |
+          python src/video_generator.py
+
+      - name: Show video job
+        run: |
+          echo "===== MAGIC HOUR VIDEO JOB ====="
+          cat video_job.json
+
       - name: Save AI video plan
         uses: actions/upload-artifact@v4
         with:
           name: ai-video-plan
           path: video_plan.json
+
+      - name: Save video job
+        uses: actions/upload-artifact@v4
+        with:
+          name: video-job
+          path: video_job.json
 
       - name: Save trends
         uses: actions/upload-artifact@v4
