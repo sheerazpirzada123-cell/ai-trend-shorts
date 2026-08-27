@@ -21,22 +21,20 @@ def ask_ai(trends):
     if not api_key:
         raise RuntimeError("OPENROUTER_API_KEY is missing")
 
-
     trends_text = "\n".join(
         f"{i + 1}. {trend}"
         for i, trend in enumerate(trends)
     )
 
-
     system_prompt = """
 You are the AI creative director for an automated short-video channel.
 
-The channel creates family-friendly AI-generated videos that can be
-enjoyed by children, teenagers and adults.
+The channel creates family-friendly AI-generated videos for children,
+teenagers and adults.
 
-Your job is to select ONE strong video idea from today's trends.
+Choose ONE strong original video idea from today's trends.
 
-IMPORTANT RULES:
+RULES:
 - Family friendly.
 - No violence.
 - No sexual content.
@@ -44,36 +42,16 @@ IMPORTANT RULES:
 - No political propaganda.
 - Do not copy existing videos.
 - Create an original concept inspired by the trend.
-- Prefer visually spectacular ideas that work without knowing English.
-- The video should be suitable for YouTube Shorts, Instagram Reels and TikTok.
+- Prefer visually spectacular ideas.
+- The video should work even without understanding English.
+- Suitable for YouTube Shorts, Instagram Reels and TikTok.
 - Target length: 30-45 seconds.
 - Use 5-7 visual scenes.
-- Each scene should be visually interesting.
-- Keep the story simple.
 - Make the first 2 seconds a strong hook.
+- Keep the story simple.
 
-Return ONLY valid JSON.
-
-Use exactly this structure:
-
-{
-  "title": "short catchy title",
-  "concept": "one sentence description",
-  "hook": "first 1-2 second hook",
-  "script": "complete narration",
-  "scenes": [
-    {
-      "scene": 1,
-      "duration": 5,
-      "visual_prompt": "detailed AI video generation prompt",
-      "narration": "narration for this scene"
-    }
-  ],
-  "caption": "short social media caption",
-  "hashtags": ["#shorts", "#ai", "#viral"]
-}
+Create a complete video plan.
 """
-
 
     user_prompt = f"""
 Today's internet trend candidates:
@@ -82,7 +60,7 @@ Today's internet trend candidates:
 
 Choose the best trend for a universal family-friendly AI Short.
 
-Think about:
+Consider:
 1. Viral potential
 2. Visual potential
 3. Kid appeal
@@ -90,9 +68,74 @@ Think about:
 5. Originality
 6. Ability to generate it with AI video
 
-Return ONLY JSON.
+Return the complete video plan.
 """
 
+    schema = {
+        "type": "object",
+        "properties": {
+            "title": {
+                "type": "string"
+            },
+            "concept": {
+                "type": "string"
+            },
+            "hook": {
+                "type": "string"
+            },
+            "script": {
+                "type": "string"
+            },
+            "scenes": {
+                "type": "array",
+                "minItems": 5,
+                "maxItems": 7,
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "scene": {
+                            "type": "integer"
+                        },
+                        "duration": {
+                            "type": "integer"
+                        },
+                        "visual_prompt": {
+                            "type": "string"
+                        },
+                        "narration": {
+                            "type": "string"
+                        }
+                    },
+                    "required": [
+                        "scene",
+                        "duration",
+                        "visual_prompt",
+                        "narration"
+                    ],
+                    "additionalProperties": False
+                }
+            },
+            "caption": {
+                "type": "string"
+            },
+            "hashtags": {
+                "type": "array",
+                "items": {
+                    "type": "string"
+                }
+            }
+        },
+        "required": [
+            "title",
+            "concept",
+            "hook",
+            "script",
+            "scenes",
+            "caption",
+            "hashtags"
+        ],
+        "additionalProperties": False
+    }
 
     payload = {
         "model": MODEL,
@@ -106,10 +149,20 @@ Return ONLY JSON.
                 "content": user_prompt
             }
         ],
-        "temperature": 0.8,
-        "max_tokens": 4000
+        "temperature": 0.7,
+        "max_tokens": 4000,
+        "response_format": {
+            "type": "json_schema",
+            "json_schema": {
+                "name": "video_plan",
+                "strict": True,
+                "schema": schema
+            }
+        },
+        "provider": {
+            "require_parameters": True
+        }
     }
-
 
     request = urllib.request.Request(
         API_URL,
@@ -123,13 +176,18 @@ Return ONLY JSON.
         method="POST"
     )
 
-
     try:
         with urllib.request.urlopen(request, timeout=120) as response:
-            result = json.loads(response.read().decode("utf-8"))
+            result = json.loads(
+                response.read().decode("utf-8")
+            )
 
     except urllib.error.HTTPError as error:
-        body = error.read().decode("utf-8", errors="replace")
+        body = error.read().decode(
+            "utf-8",
+            errors="replace"
+        )
+
         raise RuntimeError(
             f"OpenRouter HTTP {error.code}: {body}"
         )
@@ -139,31 +197,48 @@ Return ONLY JSON.
             f"OpenRouter request failed: {error}"
         )
 
-
     try:
         content = result["choices"][0]["message"]["content"]
-    except (KeyError, IndexError):
+
+    except (KeyError, IndexError, TypeError):
         raise RuntimeError(
-            f"Unexpected OpenRouter response: {json.dumps(result, indent=2)}"
+            "Unexpected OpenRouter response:\n"
+            + json.dumps(result, indent=2)
         )
 
+    if not content:
+        raise RuntimeError(
+            "OpenRouter returned empty AI content"
+        )
 
-    # Remove accidental markdown fences
-    content = content.strip()
-
-    if content.startswith("```"):
-        content = content.replace("```json", "", 1)
-        content = content.replace("```", "")
+    if isinstance(content, dict):
+        ai_data = content
+    else:
         content = content.strip()
 
+        if content.startswith("```"):
+            content = content.replace(
+                "```json",
+                "",
+                1
+            )
+            content = content.replace(
+                "```",
+                ""
+            )
+            content = content.strip()
 
-    try:
-        ai_data = json.loads(content)
-    except json.JSONDecodeError:
-        print("AI returned:")
-        print(content)
-        raise RuntimeError("AI response was not valid JSON")
+        try:
+            ai_data = json.loads(content)
 
+        except json.JSONDecodeError:
+            print("===== RAW AI RESPONSE =====")
+            print(content)
+            print("===========================")
+
+            raise RuntimeError(
+                "AI response was not valid JSON"
+            )
 
     return ai_data
 
@@ -177,9 +252,13 @@ def main():
     trends = load_trends()
 
     if not trends:
-        raise RuntimeError("No trends found in trends.json")
+        raise RuntimeError(
+            "No trends found in trends.json"
+        )
 
-    print(f"Analyzing {len(trends)} trends...")
+    print(
+        f"Analyzing {len(trends)} trends..."
+    )
 
     result = ask_ai(trends)
 
@@ -196,16 +275,35 @@ def main():
         )
 
     print("\nAI SELECTED:")
-    print(result.get("title", "No title"))
+    print(
+        result.get(
+            "title",
+            "No title"
+        )
+    )
 
     print("\nCONCEPT:")
-    print(result.get("concept", "No concept"))
+    print(
+        result.get(
+            "concept",
+            "No concept"
+        )
+    )
 
     print("\nHOOK:")
-    print(result.get("hook", "No hook"))
+    print(
+        result.get(
+            "hook",
+            "No hook"
+        )
+    )
 
     print("\nSCENES:")
-    for scene in result.get("scenes", []):
+
+    for scene in result.get(
+        "scenes",
+        []
+    ):
         print(
             f"Scene {scene.get('scene')}: "
             f"{scene.get('visual_prompt')}"
