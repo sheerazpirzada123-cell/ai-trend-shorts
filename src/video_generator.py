@@ -1,9 +1,7 @@
 import json
 import os
-import time
 import urllib.request
 import urllib.error
-
 
 API_URL = "https://api.magichour.ai/v1/text-to-video"
 
@@ -60,7 +58,6 @@ def create_video(prompt, duration):
 
 
 def main():
-
     print("====================================")
     print("AI TREND SHORTS - VIDEO GENERATOR")
     print("====================================")
@@ -74,50 +71,65 @@ def main():
             "No scenes found in video_plan.json"
         )
 
-    # TEST MODE:
-    # Generate only the first scene.
-    scene = scenes[0]
+    print(f"\nFound {len(scenes)} scenes.")
 
-    prompt = scene.get("visual_prompt")
+    jobs = []
 
-    if not prompt:
-        raise RuntimeError(
-            "First scene has no visual_prompt"
+    for index, scene in enumerate(scenes, start=1):
+
+        prompt = scene.get("visual_prompt")
+
+        if not prompt:
+            print(f"Skipping Scene {index}: no visual_prompt")
+            continue
+
+        duration = int(scene.get("duration", 5))
+
+        # Keep each generated scene between 4 and 5 seconds
+        duration = max(4, min(duration, 5))
+
+        print("\n====================================")
+        print(f"GENERATING SCENE {index}/{len(scenes)}")
+        print("====================================")
+        print(f"Duration: {duration} seconds")
+        print(f"Prompt: {prompt}")
+
+        result = create_video(
+            prompt,
+            duration
         )
 
-    duration = int(
-        scene.get("duration", 5)
-    )
+        jobs.append({
+            "scene": index,
+            "duration": duration,
+            "visual_prompt": prompt,
+            "magic_hour": result
+        })
 
-    # Keep test clip between 4 and 5 seconds.
-    duration = max(4, min(duration, 5))
-
-    print("\nGenerating TEST scene...")
-    print(f"Duration: {duration} seconds")
-    print(f"Prompt: {prompt}")
-
-    result = create_video(
-        prompt,
-        duration
-    )
+        print(f"Scene {index} job created successfully.")
 
     with open(
         "video_job.json",
         "w",
         encoding="utf-8"
     ) as file:
+
         json.dump(
-            result,
+            {
+                "total_scenes": len(jobs),
+                "jobs": jobs
+            },
             file,
             ensure_ascii=False,
             indent=2
         )
 
-    print("\n===== MAGIC HOUR RESPONSE =====")
-    print(json.dumps(result, indent=2))
+    print("\n====================================")
+    print("ALL VIDEO JOBS CREATED")
+    print("====================================")
 
-    print("\nVIDEO JOB CREATED SUCCESSFULLY.")
-    print("Job information saved to video_job.json")
+    print(f"Total jobs: {len(jobs)}")
+    print("Saved to video_job.json")
 
 
 if __name__ == "__main__":
