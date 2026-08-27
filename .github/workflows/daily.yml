@@ -1,0 +1,23 @@
+name: Daily AI Trend Shorts
+
+on:
+  schedule:
+    - cron: "0 0 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  daily:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check workflow
+        run: |
+          echo "AI Trend Shorts workflow started!"
+          echo "Date: $(date -u)"
+          echo "Next steps will research trends and generate the video."
