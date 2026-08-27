@@ -16,8 +16,22 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Check workflow
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Research trends
         run: |
-          echo "AI Trend Shorts workflow started!"
-          echo "Date: $(date -u)"
-          echo "Next steps will research trends and generate the video."
+          python src/trends.py
+
+      - name: Show collected trends
+        run: |
+          echo "===== TODAY'S TRENDS ====="
+          cat trends.json
+
+      - name: Save trends
+        uses: actions/upload-artifact@v4
+        with:
+          name: daily-trends
+          path: trends.json
