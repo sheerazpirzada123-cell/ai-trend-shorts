@@ -22,7 +22,7 @@ def create_video(prompt, duration):
         "end_seconds": duration,
         "aspect_ratio": "9:16",
         "resolution": "480p",
-        "model": "wan-2.2",
+        "model": "ltx-2.3",
         "audio": False,
         "style": {
             "prompt": prompt
