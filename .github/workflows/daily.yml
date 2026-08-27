@@ -30,6 +30,23 @@ jobs:
           echo "===== TODAY'S TRENDS ====="
           cat trends.json
 
+      - name: AI selects trend and creates video plan
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: |
+          python src/ai_brain.py
+
+      - name: Show AI video plan
+        run: |
+          echo "===== AI VIDEO PLAN ====="
+          cat video_plan.json
+
+      - name: Save AI video plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-video-plan
+          path: video_plan.json
+
       - name: Save trends
         uses: actions/upload-artifact@v4
         with:
